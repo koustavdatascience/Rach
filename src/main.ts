@@ -1,13 +1,9 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
 import { PRESETS, type PresetScene } from "./presets/presets";
 import "./style.css";
-
-// Make OrbitControls globally accessible on THREE for dynamic evaluation
-(THREE as any).OrbitControls = OrbitControls;
 
 // DOM references
 const viewportContainer = document.getElementById("viewport")!;
@@ -96,7 +92,7 @@ function updateCodeEditor(code: string) {
   });
 }
 
-// Scene Runner for Milestone 1 (Direct Bootstrap Execution)
+// Scene Runner for Milestone 1
 function loadPreset(preset: PresetScene) {
   // 1. Dispose previous scene cleanly
   if (currentSceneInstance) {
@@ -116,21 +112,13 @@ function loadPreset(preset: PresetScene) {
   presetActiveTag.textContent = preset.title;
   updateCodeEditor(preset.code);
 
-  // 4. Defer execution to next frame so container dimensions settle
+  // 4. Execute preset init function directly
   requestAnimationFrame(() => {
     try {
-      const sanitizedCode = preset.code.replace(/^\s*export\s+/gm, "");
-      const moduleRunner = new Function(
-        "THREE",
-        "OrbitControls",
-        `${sanitizedCode}\nreturn init;`
-      );
-      const initFn = moduleRunner(THREE, OrbitControls);
-      currentSceneInstance = initFn(viewportContainer, THREE, {});
+      currentSceneInstance = preset.init(viewportContainer, THREE, {});
     } catch (err: any) {
       console.error("Failed to initialize scene:", err);
 
-      // Render visible error toast in viewport
       const toast = document.createElement("div");
       toast.className = "error-toast";
       toast.style.cssText = `
