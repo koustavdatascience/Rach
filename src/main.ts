@@ -6,6 +6,9 @@ import { javascript } from "@codemirror/lang-javascript";
 import { PRESETS, type PresetScene } from "./presets/presets";
 import "./style.css";
 
+// Make OrbitControls globally accessible on THREE for dynamic evaluation
+(THREE as any).OrbitControls = OrbitControls;
+
 // DOM references
 const viewportContainer = document.getElementById("viewport")!;
 const editorContainer = document.getElementById("editor-container")!;
@@ -40,7 +43,6 @@ function initFpsMonitor() {
 
     fpsValueElement.textContent = `${fps} FPS`;
 
-    // Update status indicator dot styling based on threshold
     fpsBadgeElement.classList.remove("warning", "low");
     if (fps < 30) {
       fpsBadgeElement.classList.add("low");
@@ -68,7 +70,7 @@ function initCodeEditor(initialCode: string) {
       lineNumbers(),
       highlightActiveLineGutter(),
       javascript(),
-      EditorView.editable.of(false), // read-only for Milestone 1
+      EditorView.editable.of(false),
       EditorView.theme({
         "&": { height: "100%", outline: "none" },
         ".cm-content": { fontFamily: "var(--font-mono)", fontSize: "13px" },
@@ -106,26 +108,40 @@ function loadPreset(preset: PresetScene) {
     currentSceneInstance = null;
   }
 
-  // 2. Clear lingering DOM elements from viewport container
-  const oldCanvases = viewportContainer.querySelectorAll("canvas");
-  oldCanvases.forEach((canvas) => canvas.remove());
+  // 2. Clear lingering DOM elements & error toasts from viewport
+  const oldCanvases = viewportContainer.querySelectorAll("canvas, .error-toast");
+  oldCanvases.forEach((el) => el.remove());
 
   // 3. Update Code Editor & Title Tag
   presetActiveTag.textContent = preset.title;
   updateCodeEditor(preset.code);
 
-  // 4. Instantiate & execute preset init function
-  try {
-    const moduleRunner = new Function(
-      "THREE",
-      "OrbitControls",
-      `${preset.code}; return { init };`
-    );
-    const mod = moduleRunner(THREE, OrbitControls);
-    currentSceneInstance = mod.init(viewportContainer, THREE, {});
-  } catch (err) {
-    console.error("Failed to initialize scene:", err);
-  }
+  // 4. Defer execution to next frame so container dimensions settle
+  requestAnimationFrame(() => {
+    try {
+      const sanitizedCode = preset.code.replace(/^\s*export\s+/gm, "");
+      const moduleRunner = new Function(
+        "THREE",
+        "OrbitControls",
+        `${sanitizedCode}\nreturn init;`
+      );
+      const initFn = moduleRunner(THREE, OrbitControls);
+      currentSceneInstance = initFn(viewportContainer, THREE, {});
+    } catch (err: any) {
+      console.error("Failed to initialize scene:", err);
+
+      // Render visible error toast in viewport
+      const toast = document.createElement("div");
+      toast.className = "error-toast";
+      toast.style.cssText = `
+        position: absolute; top: 70px; left: 16px; right: 16px; z-index: 20;
+        padding: 12px 16px; background: rgba(239, 68, 68, 0.9); backdrop-filter: blur(8px);
+        color: white; border-radius: 8px; font-family: var(--font-mono); font-size: 12px;
+      `;
+      toast.textContent = `Runtime Error: ${err?.message || String(err)}`;
+      viewportContainer.appendChild(toast);
+    }
+  });
 }
 
 // Render Preset Selector Buttons
@@ -139,7 +155,6 @@ function initPresetButtons() {
       if (activePresetIndex === index) return;
       activePresetIndex = index;
 
-      // Update active state class on buttons
       const allBtns = presetButtonsContainer.querySelectorAll(".preset-btn");
       allBtns.forEach((b, i) => {
         b.classList.toggle("active", i === index);
