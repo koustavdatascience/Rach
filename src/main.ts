@@ -1,4 +1,4 @@
-import * as THREE from "three";
+// import * as THREE from "three"; // unused in Milestone 2 host
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
@@ -12,6 +12,13 @@ const presetButtonsContainer = document.getElementById("preset-buttons")!;
 const fpsValueElement = document.getElementById("fps-value")!;
 const fpsBadgeElement = document.getElementById("fps-badge")!;
 const presetActiveTag = document.getElementById("preset-active-tag")!;
+
+// Create and append sandbox iframe (Milestone 2, Part 1)
+const iframe = document.createElement("iframe");
+iframe.src = "/sandbox.html";
+iframe.sandbox.add("allow-scripts");
+iframe.style.cssText = "width:100%;height:100%;border:0;display:block;";
+viewportContainer.appendChild(iframe);
 
 // State variables
 let activePresetIndex = 0;
@@ -112,24 +119,8 @@ function loadPreset(preset: PresetScene) {
   presetActiveTag.textContent = preset.title;
   updateCodeEditor(preset.code);
 
-  // 4. Execute preset init function directly
-  requestAnimationFrame(() => {
-    try {
-      currentSceneInstance = preset.init(viewportContainer, THREE, {});
-    } catch (err: any) {
-      console.error("Failed to initialize scene:", err);
-
-      const toast = document.createElement("div");
-      toast.className = "error-toast";
-      toast.style.cssText = `
-        position: absolute; top: 70px; left: 16px; right: 16px; z-index: 20;
-        padding: 12px 16px; background: rgba(239, 68, 68, 0.9); backdrop-filter: blur(8px);
-        color: white; border-radius: 8px; font-family: var(--font-mono); font-size: 12px;
-      `;
-      toast.textContent = `Runtime Error: ${err?.message || String(err)}`;
-      viewportContainer.appendChild(toast);
-    }
-  });
+  // 4. Direct preset execution disabled in Milestone 2, Part 1
+  // (Rendering will be restored via postMessage in Part 2)
 }
 
 // Render Preset Selector Buttons
