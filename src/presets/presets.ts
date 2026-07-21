@@ -13,15 +13,15 @@ export const PRESETS: PresetScene[] = [
     code: `
 export function init(container, THREE, controlValues) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#0a0a14");
+  scene.background = new THREE.Color("#0d0e18");
 
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
   const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-  camera.position.set(2.5, 2, 3.5);
+  camera.position.set(3, 2.5, 4);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
@@ -30,34 +30,53 @@ export function init(container, THREE, controlValues) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
 
-  const geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+  // Main vibrant cube
+  const geo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
   const mat = new THREE.MeshStandardMaterial({
-    color: controlValues.color ?? "#00e5ff",
+    color: controlValues.color ?? "#00f0ff",
     roughness: 0.2,
-    metalness: 0.8,
+    metalness: 0.1,
+    emissive: "#003344",
+    emissiveIntensity: 0.5,
   });
   const cube = new THREE.Mesh(geo, mat);
   scene.add(cube);
 
-  const grid = new THREE.GridHelper(10, 10, 0x444466, 0x222233);
-  grid.position.y = -1.2;
+  // Wireframe accent overlay
+  const wireGeo = new THREE.BoxGeometry(1.62, 1.62, 1.62);
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.25,
+  });
+  const wireCube = new THREE.Mesh(wireGeo, wireMat);
+  scene.add(wireCube);
+
+  // Ground grid helper
+  const grid = new THREE.GridHelper(12, 12, 0x00f0ff, 0x223355);
+  grid.position.y = -1.4;
   scene.add(grid);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  dirLight.position.set(5, 8, 5);
-  scene.add(dirLight);
+  // Dynamic lights
+  const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
+  mainLight.position.set(5, 8, 5);
+  scene.add(mainLight);
 
-  const pointLight = new THREE.PointLight(0xff00aa, 2, 10);
-  pointLight.position.set(-3, 2, -2);
-  scene.add(pointLight);
+  const fillLight = new THREE.DirectionalLight(0xff00aa, 2.0);
+  fillLight.position.set(-5, -2, -5);
+  scene.add(fillLight);
 
-  const ambientLight = new THREE.AmbientLight(0x334466, 1.5);
+  const ambientLight = new THREE.AmbientLight(0x223355, 2.0);
   scene.add(ambientLight);
 
   let rafId;
   function tick() {
     cube.rotation.x += 0.008;
     cube.rotation.y += 0.012;
+    wireCube.rotation.x = cube.rotation.x;
+    wireCube.rotation.y = cube.rotation.y;
+
     controls.update();
     renderer.render(scene, camera);
     rafId = requestAnimationFrame(tick);
@@ -80,6 +99,9 @@ export function init(container, THREE, controlValues) {
       controls.dispose();
       geo.dispose();
       mat.dispose();
+      wireGeo.dispose();
+      wireMat.dispose();
+      grid.geometry.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -101,7 +123,7 @@ export function init(container, THREE, controlValues) {
     code: `
 export function init(container, THREE, controlValues) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#050510");
+  scene.background = new THREE.Color("#050512");
 
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
@@ -109,7 +131,7 @@ export function init(container, THREE, controlValues) {
   const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
   camera.position.set(0, 0, 7);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
@@ -145,11 +167,12 @@ export function init(container, THREE, controlValues) {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
-    size: 0.06,
+    size: 0.1,
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.95,
     blending: THREE.AdditiveBlending,
+    depthWrite: false,
   });
 
   const particles = new THREE.Points(geometry, material);
@@ -204,7 +227,7 @@ export function init(container, THREE, controlValues) {
     code: `
 export function init(container, THREE, controlValues) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#0c0916");
+  scene.background = new THREE.Color("#0c091a");
 
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
@@ -212,7 +235,7 @@ export function init(container, THREE, controlValues) {
   const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
   camera.position.set(0, 0, 4.5);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
@@ -223,22 +246,24 @@ export function init(container, THREE, controlValues) {
 
   const geo = new THREE.TorusKnotGeometry(1, 0.35, 128, 32);
   const mat = new THREE.MeshStandardMaterial({
-    color: controlValues.color ?? "#a855f7",
-    roughness: 0.15,
-    metalness: 0.9,
+    color: controlValues.color ?? "#b066ff",
+    roughness: 0.2,
+    metalness: 0.1,
+    emissive: "#330066",
+    emissiveIntensity: 0.4,
   });
   const knot = new THREE.Mesh(geo, mat);
   scene.add(knot);
 
-  const light1 = new THREE.PointLight(0x00ffff, 4, 10);
+  const light1 = new THREE.PointLight(0x00ffff, 5, 10);
   light1.position.set(3, 3, 3);
   scene.add(light1);
 
-  const light2 = new THREE.PointLight(0xff00aa, 4, 10);
+  const light2 = new THREE.PointLight(0xff00aa, 5, 10);
   light2.position.set(-3, -3, 2);
   scene.add(light2);
 
-  const ambient = new THREE.AmbientLight(0x221133, 1.5);
+  const ambient = new THREE.AmbientLight(0x332255, 2.0);
   scene.add(ambient);
 
   let rafId;
