@@ -1,60 +1,162 @@
-import './style.css'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.ts'
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EditorState } from "@codemirror/state";
+import { EditorView, lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
+import { javascript } from "@codemirror/lang-javascript";
+import { PRESETS, type PresetScene } from "./presets/presets";
+import "./style.css";
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+// DOM references
+const viewportContainer = document.getElementById("viewport")!;
+const editorContainer = document.getElementById("editor-container")!;
+const presetButtonsContainer = document.getElementById("preset-buttons")!;
+const fpsValueElement = document.getElementById("fps-value")!;
+const fpsBadgeElement = document.getElementById("fps-badge")!;
+const presetActiveTag = document.getElementById("preset-active-tag")!;
 
-<div class="ticks"></div>
+// State variables
+let activePresetIndex = 0;
+let currentSceneInstance: { dispose(): void; updateControl?(name: string, value: unknown): void } | null = null;
+let editorView: EditorView | null = null;
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+// FPS Monitor state (Rolling 30-frame window)
+const frameTimes: number[] = [];
+let lastFrameTime = performance.now();
+let fpsRafId: number | null = null;
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+function initFpsMonitor() {
+  function measureFps() {
+    const now = performance.now();
+    const delta = now - lastFrameTime;
+    lastFrameTime = now;
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+    frameTimes.push(delta);
+    if (frameTimes.length > 30) {
+      frameTimes.shift();
+    }
+
+    const averageDelta = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+    const fps = Math.round(1000 / (averageDelta || 16.6));
+
+    fpsValueElement.textContent = `${fps} FPS`;
+
+    // Update status indicator dot styling based on threshold
+    fpsBadgeElement.classList.remove("warning", "low");
+    if (fps < 30) {
+      fpsBadgeElement.classList.add("low");
+    } else if (fps < 50) {
+      fpsBadgeElement.classList.add("warning");
+    }
+
+    fpsRafId = requestAnimationFrame(measureFps);
+  }
+
+  if (fpsRafId !== null) {
+    cancelAnimationFrame(fpsRafId);
+  }
+  lastFrameTime = performance.now();
+  fpsRafId = requestAnimationFrame(measureFps);
+}
+
+// CodeMirror Editor Setup
+function initCodeEditor(initialCode: string) {
+  editorContainer.innerHTML = "";
+
+  const state = EditorState.create({
+    doc: initialCode.trim(),
+    extensions: [
+      lineNumbers(),
+      highlightActiveLineGutter(),
+      javascript(),
+      EditorView.editable.of(false), // read-only for Milestone 1
+      EditorView.theme({
+        "&": { height: "100%", outline: "none" },
+        ".cm-content": { fontFamily: "var(--font-mono)", fontSize: "13px" },
+        ".cm-line": { padding: "0 12px" },
+      }),
+    ],
+  });
+
+  editorView = new EditorView({
+    state,
+    parent: editorContainer,
+  });
+}
+
+function updateCodeEditor(code: string) {
+  if (!editorView) return;
+  editorView.dispatch({
+    changes: {
+      from: 0,
+      to: editorView.state.doc.length,
+      insert: code.trim(),
+    },
+  });
+}
+
+// Scene Runner for Milestone 1 (Direct Bootstrap Execution)
+function loadPreset(preset: PresetScene) {
+  // 1. Dispose previous scene cleanly
+  if (currentSceneInstance) {
+    try {
+      currentSceneInstance.dispose();
+    } catch (err) {
+      console.warn("Error disposing scene:", err);
+    }
+    currentSceneInstance = null;
+  }
+
+  // 2. Clear lingering DOM elements from viewport container
+  const oldCanvases = viewportContainer.querySelectorAll("canvas");
+  oldCanvases.forEach((canvas) => canvas.remove());
+
+  // 3. Update Code Editor & Title Tag
+  presetActiveTag.textContent = preset.title;
+  updateCodeEditor(preset.code);
+
+  // 4. Instantiate & execute preset init function
+  try {
+    const moduleRunner = new Function(
+      "THREE",
+      "OrbitControls",
+      `${preset.code}; return { init };`
+    );
+    const mod = moduleRunner(THREE, OrbitControls);
+    currentSceneInstance = mod.init(viewportContainer, THREE, {});
+  } catch (err) {
+    console.error("Failed to initialize scene:", err);
+  }
+}
+
+// Render Preset Selector Buttons
+function initPresetButtons() {
+  presetButtonsContainer.innerHTML = "";
+  PRESETS.forEach((preset, index) => {
+    const btn = document.createElement("button");
+    btn.className = `preset-btn ${index === activePresetIndex ? "active" : ""}`;
+    btn.textContent = preset.title;
+    btn.addEventListener("click", () => {
+      if (activePresetIndex === index) return;
+      activePresetIndex = index;
+
+      // Update active state class on buttons
+      const allBtns = presetButtonsContainer.querySelectorAll(".preset-btn");
+      allBtns.forEach((b, i) => {
+        b.classList.toggle("active", i === index);
+      });
+
+      loadPreset(PRESETS[activePresetIndex]);
+    });
+    presetButtonsContainer.appendChild(btn);
+  });
+}
+
+// Application Initialization
+function main() {
+  initPresetButtons();
+  initCodeEditor(PRESETS[activePresetIndex].code);
+  loadPreset(PRESETS[activePresetIndex]);
+  initFpsMonitor();
+}
+
+main();

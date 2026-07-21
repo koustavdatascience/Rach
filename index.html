@@ -4,10 +4,48 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ai-threejs-generator</title>
+    <title>AI Three.js Scene Generator & Viewport</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="viewport">
+        <div class="viewport-header">
+          <div class="brand">
+            <span class="logo-icon">✨</span>
+            <span class="brand-title">AI Three.js Generator</span>
+            <span class="badge">Milestone 1</span>
+          </div>
+          <div id="fps-badge" class="fps-badge">
+            <span class="fps-dot"></span>
+            <span id="fps-value">-- FPS</span>
+          </div>
+        </div>
+
+        <div class="viewport-controls-overlay">
+          <div class="preset-selector-group">
+            <label class="overlay-label">PRESETS</label>
+            <div id="preset-buttons" class="preset-buttons"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="code-pane">
+        <div class="pane-header">
+          <div class="pane-title">
+            <svg class="code-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span>Generated Code</span>
+          </div>
+          <span id="preset-active-tag" class="preset-tag">Spinning Cube</span>
+        </div>
+        <div id="editor-container" class="editor-container"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
